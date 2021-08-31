@@ -31,7 +31,7 @@ func Test_ShortenAPIHandler(t *testing.T) {
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: []byte("bad URL given"),
 			expectedInstance: &Instance{
-				baseURL: "http://localhost:8080/",
+				baseURL: "http://localhost:8080",
 				urls:    map[string]string{},
 			},
 		},
@@ -41,7 +41,7 @@ func Test_ShortenAPIHandler(t *testing.T) {
 			expectedStatus:   http.StatusCreated,
 			expectedResponse: []byte("{\"result\":\"http://localhost:8080/0\"}\n"),
 			expectedInstance: &Instance{
-				baseURL: "http://localhost:8080/",
+				baseURL: "http://localhost:8080",
 				urls: map[string]string{
 					"0": targetURL,
 				},
@@ -58,7 +58,7 @@ func Test_ShortenAPIHandler(t *testing.T) {
 			r := httptest.NewRequest("POST", "http://localhost:8080/api/shorten", body)
 			w := httptest.NewRecorder()
 
-			instance := NewInstance("http://localhost:8080/")
+			instance := NewInstance("http://localhost:8080")
 			instance.ShortenAPIHandler(w, r)
 
 			assert.Equal(t, tc.expectedStatus, w.Code)

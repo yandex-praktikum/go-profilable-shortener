@@ -8,14 +8,14 @@ import (
 )
 
 func main() {
-	config.Parse()
-
 	if err := run(); err != nil {
 		panic("unexpected error: " + err.Error())
 	}
 }
 
 func run() error {
+	config.Parse()
+
 	instance := app.NewInstance(config.BaseURL)
 
 	if config.PersistFile != "" {

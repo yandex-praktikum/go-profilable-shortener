@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"strings"
 )
 
 var (
@@ -27,4 +28,7 @@ func Parse() {
 	if val := os.Getenv("FILE_STORAGE_PATH"); val != "" {
 		PersistFile = val
 	}
+
+	BaseURL = strings.TrimRight(BaseURL, "/")
+	_ = BaseURL
 }

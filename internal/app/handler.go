@@ -85,5 +85,5 @@ func (i *Instance) shorten(rawURL string) (shortURL string, err error) {
 
 	id := fmt.Sprintf("%x", len(i.urls))
 	i.urls[id] = rawURL
-	return i.baseURL + id, nil
+	return i.baseURL + "/" + id, nil
 }

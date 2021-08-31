@@ -57,7 +57,7 @@ jobs:
         run: |
           shortenertest -test.v -test.run=^TestAPIHandler\|TestUsesJSONEncoder$ ./...
 
-      - name: Start web server with custom settings
+      - name: Start web server with custom settings via env
         if: always()
         run: |
           APP_PORT=9080
@@ -80,7 +80,7 @@ jobs:
         run: |
           PERSISTENT_FILE_PATH=/tmp/$APP_BASE_HOST.db shortenertest -test.v -test.run=^TestPersistentFile$ ./...
 
-      - name: Start web server with custom settings
+      - name: Start web server with custom settings via flags
         if: always()
         run: |
           APP_PORT=9088
