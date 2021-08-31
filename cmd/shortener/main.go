@@ -19,9 +19,7 @@ func run() error {
 	instance := app.NewInstance(config.BaseURL)
 
 	if config.PersistFile != "" {
-		if err := instance.LoadURLs(config.PersistFile); err != nil {
-			return err
-		}
+		_ = instance.LoadURLs(config.PersistFile)
 		defer instance.StoreURLs(config.PersistFile)
 	}
 
