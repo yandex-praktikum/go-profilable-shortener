@@ -19,7 +19,7 @@ func NewInstance(baseURL string) *Instance {
 }
 
 func (i *Instance) LoadURLs(path string) error {
-	fd, err := os.Open(path)
+	fd, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
