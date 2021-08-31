@@ -78,6 +78,7 @@ jobs:
       - name: "Stop custom server"
         if: always()
         run: |
+          lsof -n -i :$APP_PORT | grep LISTEN
           PID=$(lsof -n -i :$APP_PORT | grep LISTEN | awk '{print $2}')
           kill --timeout 10000 INT --timeout 1000 KILL $PID
 
