@@ -73,7 +73,7 @@ jobs:
       - name: "[Code increment #5] Check env vars usage"
         if: always()
         run: |
-          TARGET_HTTP_ADDRESS=$APP_BASE_URL:$APP_PORT shortenertest -test.v -test.run=^TestBasicHandlers\|TestAPIHandler$ ./...
+          TARGET_HTTP_ADDRESS=$APP_BASE_URL shortenertest -test.v -test.run=^TestBasicHandlers\|TestAPIHandler$ ./...
 
       - name: "[Code increment #6] Check persistent file usage"
         if: always()
@@ -96,4 +96,4 @@ jobs:
       - name: "[Code increment #7] Check flags usage"
         if: always()
         run: |
-          TARGET_HTTP_ADDRESS=$APP_BASE_URL:$APP_PORT shortenertest -test.v -test.run=^TestBasicHandlers\|TestAPIHandler$ ./...
+          TARGET_HTTP_ADDRESS=$APP_BASE_URL shortenertest -test.v -test.run=^TestBasicHandlers\|TestAPIHandler$ ./...
