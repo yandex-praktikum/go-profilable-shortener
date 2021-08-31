@@ -62,7 +62,7 @@ jobs:
         run: |
           APP_PORT=9080
           APP_BASE_HOST=$(tr -dc a-z < /dev/urandom | head -c 12 ; echo '.local')
-          APP_BASE_URL=http://$APP_BASE_HOST
+          APP_BASE_URL=http://$APP_BASE_HOST:$APP_PORT
           echo "APP_PORT=$APP_PORT" >> $GITHUB_ENV
           echo "APP_BASE_HOST=$APP_BASE_HOST" >> $GITHUB_ENV
           echo "APP_BASE_URL=$APP_BASE_URL" >> $GITHUB_ENV
@@ -85,7 +85,7 @@ jobs:
         run: |
           APP_PORT=9088
           APP_BASE_HOST=$(tr -dc a-z < /dev/urandom | head -c 12 ; echo '.local')
-          APP_BASE_URL=http://$APP_BASE_HOST
+          APP_BASE_URL=http://$APP_BASE_HOST:$APP_PORT
           echo "APP_PORT=$APP_PORT" >> $GITHUB_ENV
           echo "APP_BASE_HOST=$APP_BASE_HOST" >> $GITHUB_ENV
           echo "APP_BASE_URL=$APP_BASE_URL" >> $GITHUB_ENV
