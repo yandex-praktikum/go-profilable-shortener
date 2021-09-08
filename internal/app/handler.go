@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/bbrodriges/practicum-shortener/internal/store"
 	"github.com/bbrodriges/practicum-shortener/models"
 )
 
@@ -21,7 +23,14 @@ func (i *Instance) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL, err := i.shorten(string(b))
+	u, err := url.Parse(string(b))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("Cannot parse given string as URL"))
+		return
+	}
+
+	shortURL, err := i.shorten(r.Context(), u)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(err.Error()))
@@ -41,7 +50,14 @@ func (i *Instance) ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortURL, err := i.shorten(req.URL)
+	u, err := url.Parse(req.URL)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("Cannot parse given string as URL"))
+		return
+	}
+
+	shortURL, err := i.shorten(r.Context(), u)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(err.Error()))
@@ -61,29 +77,31 @@ func (i *Instance) ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (i *Instance) ExpandHandler(w http.ResponseWriter, r *http.Request) {
-	param := chi.URLParam(r, "id")
-	if param == "" {
+	id := chi.URLParam(r, "id")
+	if id == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte("Bad ID given"))
 		return
 	}
 
-	target, ok := i.urls[param]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
+	target, err := i.store.Load(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Location", target)
+	w.Header().Set("Location", target.String())
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func (i *Instance) shorten(rawURL string) (shortURL string, err error) {
-	if _, err := url.Parse(rawURL); err != nil {
-		return "", errors.New("bad URL given")
+func (i *Instance) shorten(ctx context.Context, rawURL *url.URL) (shortURL string, err error) {
+	id, err := i.store.Save(ctx, rawURL)
+	if err != nil {
+		return "", fmt.Errorf("cannot save URL to storage: %w", err)
 	}
-
-	id := fmt.Sprintf("%x", len(i.urls))
-	i.urls[id] = rawURL
 	return i.baseURL + "/" + id, nil
 }

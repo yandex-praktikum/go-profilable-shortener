@@ -6,46 +6,42 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bbrodriges/practicum-shortener/internal/store"
 	"github.com/bbrodriges/practicum-shortener/models"
 )
 
 func Test_ShortenAPIHandler(t *testing.T) {
 	targetURL := "https://praktikum.yandex.ru/"
 
+	instance := &Instance{
+		baseURL: "http://localhost:8080",
+		store:   store.NewInMemory(),
+	}
+
 	testCases := []struct {
 		name             string
 		url              string
 		expectedStatus   int
 		expectedResponse []byte
-		expectedInstance *Instance
 	}{
 		{
 			name:             "bad_request",
 			url:              "htt_p://o.com",
 			expectedStatus:   http.StatusBadRequest,
-			expectedResponse: []byte("bad URL given"),
-			expectedInstance: &Instance{
-				baseURL: "http://localhost:8080",
-				urls:    map[string]string{},
-			},
+			expectedResponse: []byte("Cannot parse given string as URL"),
 		},
 		{
 			name:             "success",
 			url:              targetURL,
 			expectedStatus:   http.StatusCreated,
 			expectedResponse: []byte("{\"result\":\"http://localhost:8080/0\"}\n"),
-			expectedInstance: &Instance{
-				baseURL: "http://localhost:8080",
-				urls: map[string]string{
-					"0": targetURL,
-				},
-			},
 		},
 	}
 
@@ -58,23 +54,24 @@ func Test_ShortenAPIHandler(t *testing.T) {
 			r := httptest.NewRequest("POST", "http://localhost:8080/api/shorten", body)
 			w := httptest.NewRecorder()
 
-			instance := NewInstance("http://localhost:8080")
 			instance.ShortenAPIHandler(w, r)
 
 			assert.Equal(t, tc.expectedStatus, w.Code)
 			assert.Equal(t, tc.expectedResponse, w.Body.Bytes())
-			assert.Equal(t, tc.expectedInstance, instance)
 		})
 	}
 }
 
 func Test_expander(t *testing.T) {
 	expectedURL := "https://praktikum.yandex.ru/"
+	parsedURL, _ := url.Parse(expectedURL)
+
+	storage := store.NewInMemory()
+	id, _ := storage.Save(context.Background(), parsedURL)
 
 	instance := &Instance{
-		urls: map[string]string{
-			"0": expectedURL,
-		},
+		baseURL: "http://localhost:8080",
+		store:   storage,
 	}
 
 	testCases := []struct {
@@ -97,7 +94,7 @@ func Test_expander(t *testing.T) {
 		},
 		{
 			name:             "success",
-			id:               "0",
+			id:               id,
 			expectedStatus:   http.StatusTemporaryRedirect,
 			expectedLocation: expectedURL,
 		},

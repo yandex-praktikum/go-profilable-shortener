@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/bbrodriges/practicum-shortener/internal/app"
 	"github.com/bbrodriges/practicum-shortener/internal/config"
+	"github.com/bbrodriges/practicum-shortener/internal/store"
 )
 
 func main() {
@@ -16,12 +18,17 @@ func main() {
 func run() error {
 	config.Parse()
 
-	instance := app.NewInstance(config.BaseURL)
-
+	var err error
+	var storage store.Store = store.NewInMemory()
 	if config.PersistFile != "" {
-		_ = instance.LoadURLs(config.PersistFile)
-		defer instance.StoreURLs(config.PersistFile)
+		storage, err = store.NewFileStore(config.PersistFile)
+		if err != nil {
+			return fmt.Errorf("cannot create persistent storage: %w", err)
+		}
+		defer storage.Close()
 	}
+
+	instance := app.NewInstance(config.BaseURL, storage)
 
 	return http.ListenAndServe(config.RunPort, newRouter(instance))
 }
