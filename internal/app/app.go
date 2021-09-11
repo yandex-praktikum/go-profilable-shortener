@@ -7,10 +7,10 @@ import (
 type Instance struct {
 	baseURL string
 
-	store store.Store
+	store store.AuthStore
 }
 
-func NewInstance(baseURL string, storage store.Store) *Instance {
+func NewInstance(baseURL string, storage store.AuthStore) *Instance {
 	return &Instance{
 		baseURL: baseURL,
 		store:   storage,

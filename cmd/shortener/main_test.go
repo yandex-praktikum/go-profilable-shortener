@@ -4,25 +4,34 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bbrodriges/practicum-shortener/models"
 )
 
-func Test_run(t *testing.T) {
+func TestMain(m *testing.M) {
 	go func() {
 		err := run()
-		require.NoError(t, err)
+		if err != nil {
+			panic(err)
+		}
 	}()
+	os.Exit(m.Run())
+}
 
+func Test_run(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	targetURL := "https://praktikum.yandex.ru/"
@@ -161,4 +170,44 @@ func Test_run(t *testing.T) {
 
 		require.Equal(t, expectResponse, actualResponse)
 	})
+}
+
+func TestEndToEnd(t *testing.T) {
+	originalURL := "https://praktikum.yandex.ru"
+
+	// create HTTP client without redirects support
+	errRedirectBlocked := errors.New("HTTP redirect blocked")
+	redirPolicy := resty.RedirectPolicyFunc(func(_ *http.Request, _ []*http.Request) error {
+		return errRedirectBlocked
+	})
+
+	httpc := resty.New().
+		SetHostURL("http://localhost:8080").
+		SetRedirectPolicy(redirPolicy)
+
+	// shorten URL
+	req := httpc.R().
+		SetBody(originalURL)
+	resp, err := req.Post("/")
+	require.NoError(t, err)
+
+	shortenURL := string(resp.Body())
+
+	assert.Equal(t, http.StatusCreated, resp.StatusCode())
+	assert.NoError(t, func() error {
+		_, err := url.Parse(shortenURL)
+		return err
+	}())
+
+	// expand URL
+	req = resty.New().
+		SetRedirectPolicy(redirPolicy).
+		R()
+	resp, err = req.Get(shortenURL)
+	if !errors.Is(err, errRedirectBlocked) {
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode())
+	assert.Equal(t, originalURL, resp.Header().Get("Location"))
 }

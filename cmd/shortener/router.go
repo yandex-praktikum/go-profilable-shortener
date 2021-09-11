@@ -5,17 +5,20 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gofrs/uuid"
 
 	"github.com/bbrodriges/practicum-shortener/internal/app"
+	"github.com/bbrodriges/practicum-shortener/internal/auth"
 )
 
 func newRouter(i *app.Instance) http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(gzipMiddleware)
+	r.Use(gzipMiddleware, authMiddleware)
 	r.Post("/", i.ShortenHandler)
 	r.Post("/api/shorten", i.ShortenAPIHandler)
 	r.Get("/{id}", i.ExpandHandler)
+	r.Get("/user/urls", i.UserURLsHandler)
 
 	return r
 }
@@ -45,5 +48,39 @@ func gzipMiddleware(h http.Handler) http.Handler {
 		}
 
 		h.ServeHTTP(ow, r)
+	})
+}
+
+func authMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var uid *uuid.UUID
+
+		cookie, err := r.Cookie("auth")
+		if cookie != nil {
+			uid, err = auth.DecodeUIDFromHex(cookie.Value)
+		}
+		// generate new uid if failed to obtain existing
+		if uid == nil {
+			userID := uuid.Must(uuid.NewV4())
+			uid = &userID
+		}
+
+		// set new auth cookie in case of absence or decode error
+		if err != nil {
+			value, err := auth.EncodeUIDToHex(*uid)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte("cannot encode auth cookie"))
+				return
+			}
+			cookie = &http.Cookie{Name: "auth", Value: value}
+			http.SetCookie(w, cookie)
+		}
+
+		// set uid to context
+		ctx := auth.Context(r.Context(), *uid)
+		r = r.WithContext(ctx)
+
+		h.ServeHTTP(w, r)
 	})
 }

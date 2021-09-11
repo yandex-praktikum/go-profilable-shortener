@@ -10,6 +10,7 @@ var (
 	RunPort     = ":8080"
 	BaseURL     = "http://localhost:8080/"
 	PersistFile = ""
+	AuthSecret  = []byte("ololo-trololo-shimba-boomba-look")
 )
 
 func Parse() {

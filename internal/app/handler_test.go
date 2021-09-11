@@ -10,9 +10,11 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bbrodriges/practicum-shortener/internal/auth"
 	"github.com/bbrodriges/practicum-shortener/internal/store"
 	"github.com/bbrodriges/practicum-shortener/models"
 )
@@ -113,6 +115,58 @@ func Test_expander(t *testing.T) {
 
 			assert.Equal(t, tc.expectedStatus, w.Code)
 			assert.Equal(t, tc.expectedLocation, w.Header().Get("Location"))
+		})
+	}
+}
+
+func Test_userURLs(t *testing.T) {
+	uid := uuid.Must(uuid.NewV4())
+	u, _ := url.Parse("https://praktikum.yandex.ru/")
+
+	storage := store.NewInMemory()
+	id, _ := storage.SaveUser(context.Background(), uid, u)
+
+	instance := &Instance{
+		baseURL: "http://localhost:8080",
+		store:   storage,
+	}
+
+	testCases := []struct {
+		name           string
+		ctx            context.Context
+		expectedStatus int
+		expectedBody   []byte
+	}{
+		{
+			name:           "no_uid",
+			ctx:            context.Background(),
+			expectedStatus: http.StatusNoContent,
+			expectedBody:   nil,
+		},
+		{
+			name:           "no_urls",
+			ctx:            auth.Context(context.Background(), uuid.Must(uuid.NewV4())),
+			expectedStatus: http.StatusNoContent,
+			expectedBody:   nil,
+		},
+		{
+			name:           "has_urls",
+			ctx:            auth.Context(context.Background(), uid),
+			expectedStatus: http.StatusOK,
+			expectedBody:   []byte("[{\"short_url\":\"http://localhost:8080/" + id + "\",\"original_url\":\"https://praktikum.yandex.ru/\"}]\n"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "http://localhost:8080/user/urls", nil)
+			r = r.WithContext(tc.ctx)
+
+			w := httptest.NewRecorder()
+			instance.UserURLsHandler(w, r)
+
+			assert.Equal(t, tc.expectedStatus, w.Code)
+			assert.Equal(t, tc.expectedBody, w.Body.Bytes())
 		})
 	}
 }

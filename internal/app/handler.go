@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/bbrodriges/practicum-shortener/internal/auth"
 	"github.com/bbrodriges/practicum-shortener/internal/store"
 	"github.com/bbrodriges/practicum-shortener/models"
 )
@@ -98,8 +99,47 @@ func (i *Instance) ExpandHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+func (i *Instance) UserURLsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	uid := auth.UIDFromContext(ctx)
+	if uid == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	urls, err := i.store.LoadUsers(ctx, *uid)
+	if errors.Is(err, store.ErrNotFound) || len(urls) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp := make([]models.URLResponse, 0, len(urls))
+	for id, u := range urls {
+		resp = append(resp, models.URLResponse{
+			ShortURL:    i.baseURL + "/" + id,
+			OriginalURL: u.String(),
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 func (i *Instance) shorten(ctx context.Context, rawURL *url.URL) (shortURL string, err error) {
-	id, err := i.store.Save(ctx, rawURL)
+	uid := auth.UIDFromContext(ctx)
+
+	var id string
+	if uid != nil {
+		id, err = i.store.SaveUser(ctx, *uid, rawURL)
+	} else {
+		id, err = i.store.Save(ctx, rawURL)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("cannot save URL to storage: %w", err)
 	}

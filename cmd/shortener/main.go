@@ -19,7 +19,7 @@ func run() error {
 	config.Parse()
 
 	var err error
-	var storage store.Store = store.NewInMemory()
+	var storage store.AuthStore = store.NewInMemory()
 	if config.PersistFile != "" {
 		storage, err = store.NewFileStore(config.PersistFile)
 		if err != nil {
