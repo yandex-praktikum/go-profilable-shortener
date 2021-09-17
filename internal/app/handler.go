@@ -32,13 +32,18 @@ func (i *Instance) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shortURL, err := i.shorten(r.Context(), u)
-	if err != nil {
+	if err != nil && !errors.Is(err, store.ErrConflict) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	status := http.StatusCreated
+	if errors.Is(err, store.ErrConflict) {
+		status = http.StatusConflict
+	}
+
+	w.WriteHeader(status)
 	_, _ = w.Write([]byte(shortURL))
 }
 
@@ -59,7 +64,7 @@ func (i *Instance) ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shortURL, err := i.shorten(r.Context(), u)
-	if err != nil {
+	if err != nil && !errors.Is(err, store.ErrConflict) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
 		return
@@ -67,7 +72,12 @@ func (i *Instance) ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	w.WriteHeader(http.StatusCreated)
+	status := http.StatusCreated
+	if errors.Is(err, store.ErrConflict) {
+		status = http.StatusConflict
+	}
+
+	w.WriteHeader(status)
 	err = json.NewEncoder(w).Encode(models.ShortenResponse{
 		Result: shortURL,
 	})
@@ -204,10 +214,10 @@ func (i *Instance) shorten(ctx context.Context, rawURL *url.URL) (shortURL strin
 		id, err = i.store.Save(ctx, rawURL)
 	}
 
-	if err != nil {
+	if err != nil && !errors.Is(err, store.ErrConflict) {
 		return "", fmt.Errorf("cannot save URL to storage: %w", err)
 	}
-	return i.baseURL + "/" + id, nil
+	return i.baseURL + "/" + id, err
 }
 
 func (i *Instance) shortenBatch(ctx context.Context, rawURLs []*url.URL) (shortURLs []string, err error) {

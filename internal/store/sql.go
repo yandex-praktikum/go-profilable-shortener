@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofrs/uuid"
 )
@@ -31,10 +32,12 @@ func (r *RDB) Bootstrap(ctx context.Context) error {
 		CREATE TABLE IF NOT EXISTS urls (
 			id serial PRIMARY KEY,
 			original_url text,
-			user_id uuid
+			user_id uuid,
+			updated_at timestamp without time zone
 		);
 
 		CREATE INDEX IF NOT EXISTS user_id_idx ON urls (user_id);
+		CREATE UNIQUE INDEX IF NOT EXISTS original_url_idx ON urls (original_url);
 	`
 
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -55,15 +58,30 @@ func (r *RDB) Bootstrap(ctx context.Context) error {
 }
 
 func (r *RDB) Save(ctx context.Context, url *url.URL) (id string, err error) {
-	query := `INSERT INTO urls (original_url) VALUES ($1) RETURNING id;`
+	query := `
+		INSERT INTO urls
+		    (original_url)
+		VALUES
+		    ($1)
+		ON CONFLICT (original_url)
+		DO UPDATE SET updated_at = NOW()
+		RETURNING
+		    id,
+		    updated_at
+	`
 
 	var lid int64
-	err = r.db.QueryRowContext(ctx, query, url.String()).Scan(&id)
+	var updatedAt *time.Time
+	err = r.db.QueryRowContext(ctx, query, url.String()).Scan(&lid, &updatedAt)
 	if err != nil {
-		return "", fmt.Errorf("cannot insert url: %w", err)
+		return "", fmt.Errorf("cannot fetch conflict url: %w", err)
 	}
 
-	return strconv.FormatInt(lid, 10), nil
+	id = strconv.FormatInt(lid, 10)
+	if updatedAt != nil && !updatedAt.IsZero() {
+		err = ErrConflict
+	}
+	return
 }
 
 func (r *RDB) SaveBatch(ctx context.Context, urls []*url.URL) (ids []string, err error) {
@@ -78,7 +96,14 @@ func (r *RDB) SaveBatch(ctx context.Context, urls []*url.URL) (ids []string, err
 		args = append(args, u.String())
 	}
 
-	query := `INSERT INTO urls (original_url) VALUES ` + insertValues.String() + ` RETURNING id;`
+	query := `
+		INSERT INTO urls
+			(original_url)
+		VALUES ` + insertValues.String() + `
+		ON CONFLICT (original_url)
+		DO UPDATE SET updated_at = NOW()
+		RETURNING id
+	`
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -120,15 +145,30 @@ func (r *RDB) Load(ctx context.Context, id string) (url *url.URL, err error) {
 }
 
 func (r *RDB) SaveUser(ctx context.Context, uid uuid.UUID, url *url.URL) (id string, err error) {
-	query := `INSERT INTO urls (original_url, user_id) VALUES ($1, $2) RETURNING id;`
+	query := `
+		INSERT INTO urls
+		    (original_url, user_id)
+		VALUES
+		    ($1, $2)
+		ON CONFLICT (original_url)
+		DO UPDATE SET updated_at = NOW()
+		RETURNING
+		    id,
+		    updated_at
+	`
 
 	var lid int64
-	err = r.db.QueryRowContext(ctx, query, url.String(), uid).Scan(&id)
+	var updatedAt *time.Time
+	err = r.db.QueryRowContext(ctx, query, url.String(), uid).Scan(&lid, &updatedAt)
 	if err != nil {
-		return "", fmt.Errorf("cannot insert url: %w", err)
+		return "", fmt.Errorf("cannot fetch conflict url: %w", err)
 	}
 
-	return strconv.FormatInt(lid, 10), nil
+	id = strconv.FormatInt(lid, 10)
+	if updatedAt != nil && !updatedAt.IsZero() {
+		err = ErrConflict
+	}
+	return
 }
 
 func (r *RDB) SaveUserBatch(ctx context.Context, uid uuid.UUID, urls []*url.URL) (ids []string, err error) {
