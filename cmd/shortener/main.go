@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
 
 	"github.com/bbrodriges/practicum-shortener/internal/app"
 	"github.com/bbrodriges/practicum-shortener/internal/config"
@@ -18,17 +24,58 @@ func main() {
 func run() error {
 	config.Parse()
 
-	var err error
-	var storage store.AuthStore = store.NewInMemory()
-	if config.PersistFile != "" {
-		storage, err = store.NewFileStore(config.PersistFile)
-		if err != nil {
-			return fmt.Errorf("cannot create persistent storage: %w", err)
-		}
-		defer storage.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	storage, err := newStore(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot create storage: %w", err)
 	}
+	defer storage.Close()
 
 	instance := app.NewInstance(config.BaseURL, storage)
 
 	return http.ListenAndServe(config.RunPort, newRouter(instance))
+}
+
+func newStore(ctx context.Context) (storage store.AuthStore, err error) {
+	if config.DatabaseDSN != "" {
+		rdb, err := newRDBStore(ctx, config.DatabaseDSN)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create RDB store: %w", err)
+		}
+		if err := rdb.Bootstrap(ctx); err != nil {
+			return nil, fmt.Errorf("cannot bootstrap RDB store: %w", err)
+		}
+		return rdb, nil
+	}
+	if config.PersistFile != "" {
+		storage, err = store.NewFileStore(config.PersistFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create file store: %w", err)
+		}
+		return
+	}
+	return store.NewInMemory(), nil
+}
+
+func newRDBStore(ctx context.Context, dsn string) (*store.RDB, error) {
+	// disable prepared statements
+	driverConfig := stdlib.DriverConfig{
+		ConnConfig: pgx.ConnConfig{
+			PreferSimpleProtocol: true,
+		},
+	}
+	stdlib.RegisterDriverConfig(&driverConfig)
+
+	conn, err := sql.Open("pgx", driverConfig.ConnectionString(dsn))
+	if err != nil {
+		return nil, fmt.Errorf("cannot create connection pool: %w", err)
+	}
+
+	if err = conn.PingContext(ctx); err != nil {
+		return nil, fmt.Errorf("cannot perform initial ping: %w", err)
+	}
+
+	return store.NewRDB(conn), nil
 }

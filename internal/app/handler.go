@@ -33,7 +33,7 @@ func (i *Instance) ShortenHandler(w http.ResponseWriter, r *http.Request) {
 
 	shortURL, err := i.shorten(r.Context(), u)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
@@ -60,7 +60,7 @@ func (i *Instance) ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 
 	shortURL, err := i.shorten(r.Context(), u)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
@@ -130,6 +130,70 @@ func (i *Instance) UserURLsHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+func (i *Instance) BatchShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
+	var req []models.BatchShortenRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("Bad request body given"))
+		return
+	}
+
+	if len(req) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("Empty URLs list given"))
+		return
+	}
+
+	urls := make([]*url.URL, 0, len(req))
+	for _, pair := range req {
+		u, err := url.Parse(pair.OriginalURL)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			msg := fmt.Sprintf("Cannot parse given string as URL: %s", pair.OriginalURL)
+			_, _ = w.Write([]byte(msg))
+			return
+		}
+		urls = append(urls, u)
+	}
+
+	shortURLs, err := i.shortenBatch(r.Context(), urls)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	if len(shortURLs) != len(req) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("invalid shorten URLs length"))
+		return
+	}
+
+	res := make([]models.BatchShortenResponse, 0, len(shortURLs))
+	for i, shortURL := range shortURLs {
+		res = append(res, models.BatchShortenResponse{
+			CorrelationID: req[i].CorrelationID,
+			ShortURL:      shortURL,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	err = json.NewEncoder(w).Encode(res)
+	if err != nil {
+		fmt.Printf("cannot write response: %s", err)
+	}
+}
+
+func (i *Instance) PingHandler(w http.ResponseWriter, r *http.Request) {
+	if err := i.store.Ping(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (i *Instance) shorten(ctx context.Context, rawURL *url.URL) (shortURL string, err error) {
 	uid := auth.UIDFromContext(ctx)
 
@@ -144,4 +208,26 @@ func (i *Instance) shorten(ctx context.Context, rawURL *url.URL) (shortURL strin
 		return "", fmt.Errorf("cannot save URL to storage: %w", err)
 	}
 	return i.baseURL + "/" + id, nil
+}
+
+func (i *Instance) shortenBatch(ctx context.Context, rawURLs []*url.URL) (shortURLs []string, err error) {
+	uid := auth.UIDFromContext(ctx)
+
+	var ids []string
+	if uid != nil {
+		ids, err = i.store.SaveUserBatch(ctx, *uid, rawURLs)
+	} else {
+		ids, err = i.store.SaveBatch(ctx, rawURLs)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot save URL to storage: %w", err)
+	}
+
+	shortURLs = make([]string, 0, len(ids))
+	for _, id := range ids {
+		shortURLs = append(shortURLs, i.baseURL+"/"+id)
+	}
+
+	return shortURLs, nil
 }

@@ -17,8 +17,10 @@ func newRouter(i *app.Instance) http.Handler {
 	r.Use(gzipMiddleware, authMiddleware)
 	r.Post("/", i.ShortenHandler)
 	r.Post("/api/shorten", i.ShortenAPIHandler)
+	r.Post("/api/shorten/batch", i.BatchShortenAPIHandler)
 	r.Get("/{id}", i.ExpandHandler)
 	r.Get("/user/urls", i.UserURLsHandler)
+	r.Get("/ping", i.PingHandler)
 
 	return r
 }
