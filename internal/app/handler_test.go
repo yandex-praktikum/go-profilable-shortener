@@ -140,7 +140,7 @@ func Test_userURLs(t *testing.T) {
 		{
 			name:           "no_uid",
 			ctx:            context.Background(),
-			expectedStatus: http.StatusNoContent,
+			expectedStatus: http.StatusUnprocessableEntity,
 			expectedBody:   nil,
 		},
 		{

@@ -227,7 +227,7 @@ func (r *RDB) LoadUser(ctx context.Context, uid uuid.UUID, id string) (url *url.
 }
 
 func (r *RDB) LoadUsers(ctx context.Context, uid uuid.UUID) (urls map[string]*url.URL, err error) {
-	query := `SELECT id, original_url FROM urls WHERE user_id = $2;`
+	query := `SELECT id, original_url FROM urls WHERE user_id = $1;`
 
 	rows, err := r.db.QueryContext(ctx, query, uid)
 	if err != nil {

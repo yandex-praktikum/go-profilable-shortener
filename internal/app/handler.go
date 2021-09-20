@@ -114,7 +114,7 @@ func (i *Instance) UserURLsHandler(w http.ResponseWriter, r *http.Request) {
 
 	uid := auth.UIDFromContext(ctx)
 	if uid == nil {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 
