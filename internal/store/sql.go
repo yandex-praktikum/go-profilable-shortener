@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/jackc/pgx/pgtype"
 )
 
 var _ Store = (*RDB)(nil)
@@ -33,11 +34,12 @@ func (r *RDB) Bootstrap(ctx context.Context) error {
 			id serial PRIMARY KEY,
 			original_url text,
 			user_id uuid,
-			updated_at timestamp without time zone
+			updated_at timestamp without time zone,
+		    deleted_at timestamp without time zone
 		);
 
 		CREATE INDEX IF NOT EXISTS user_id_idx ON urls (user_id);
-		CREATE UNIQUE INDEX IF NOT EXISTS original_url_idx ON urls (original_url);
+		CREATE UNIQUE INDEX IF NOT EXISTS original_url_idx ON urls (original_url) WHERE deleted_at IS NULL;
 	`
 
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -63,7 +65,7 @@ func (r *RDB) Save(ctx context.Context, url *url.URL) (id string, err error) {
 		    (original_url)
 		VALUES
 		    ($1)
-		ON CONFLICT (original_url)
+		ON CONFLICT (original_url) WHERE deleted_at IS NULL
 		DO UPDATE SET updated_at = NOW()
 		RETURNING
 		    id,
@@ -100,7 +102,7 @@ func (r *RDB) SaveBatch(ctx context.Context, urls []*url.URL) (ids []string, err
 		INSERT INTO urls
 			(original_url)
 		VALUES ` + insertValues.String() + `
-		ON CONFLICT (original_url)
+		ON CONFLICT (original_url) WHERE deleted_at IS NULL
 		DO UPDATE SET updated_at = NOW()
 		RETURNING id
 	`
@@ -132,15 +134,20 @@ func (r *RDB) SaveBatch(ctx context.Context, urls []*url.URL) (ids []string, err
 
 func (r *RDB) Load(ctx context.Context, id string) (url *url.URL, err error) {
 	var rawURL string
-	query := `SELECT original_url FROM urls WHERE id = $1;`
+	var deletedAt *time.Time
+	query := `SELECT original_url, deleted_at FROM urls WHERE id = $1;`
 
-	err = r.db.QueryRowContext(ctx, query, id).Scan(&rawURL)
+	err = r.db.QueryRowContext(ctx, query, id).Scan(&rawURL, &deletedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("cannot scan row: %w", err)
 	}
+	if deletedAt != nil {
+		return nil, ErrDeleted
+	}
+
 	return url.Parse(rawURL)
 }
 
@@ -150,7 +157,7 @@ func (r *RDB) SaveUser(ctx context.Context, uid uuid.UUID, url *url.URL) (id str
 		    (original_url, user_id)
 		VALUES
 		    ($1, $2)
-		ON CONFLICT (original_url)
+		ON CONFLICT (original_url) WHERE deleted_at IS NULL
 		DO UPDATE SET updated_at = NOW()
 		RETURNING
 		    id,
@@ -214,20 +221,25 @@ func (r *RDB) SaveUserBatch(ctx context.Context, uid uuid.UUID, urls []*url.URL)
 
 func (r *RDB) LoadUser(ctx context.Context, uid uuid.UUID, id string) (url *url.URL, err error) {
 	var rawURL string
-	query := `SELECT original_url FROM urls WHERE id = $1 AND user_id = $2;`
+	var deletedAt *time.Time
+	query := `SELECT original_url, deleted_at FROM urls WHERE id = $1 AND user_id = $2;`
 
-	err = r.db.QueryRowContext(ctx, query, id, uid).Scan(&rawURL)
+	err = r.db.QueryRowContext(ctx, query, id, uid).Scan(&rawURL, &deletedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("cannot scan row: %w", err)
 	}
+	if deletedAt != nil {
+		return nil, ErrDeleted
+	}
+
 	return url.Parse(rawURL)
 }
 
 func (r *RDB) LoadUsers(ctx context.Context, uid uuid.UUID) (urls map[string]*url.URL, err error) {
-	query := `SELECT id, original_url FROM urls WHERE user_id = $1;`
+	query := `SELECT id, original_url FROM urls WHERE user_id = $1 AND deleted_at IS NULL;`
 
 	rows, err := r.db.QueryContext(ctx, query, uid)
 	if err != nil {
@@ -256,6 +268,17 @@ func (r *RDB) LoadUsers(ctx context.Context, uid uuid.UUID) (urls map[string]*ur
 	}
 
 	return res, nil
+}
+
+func (r *RDB) DeleteUsers(ctx context.Context, uid uuid.UUID, ids ...string) error {
+	arr := new(pgtype.VarcharArray)
+	if err := arr.Set(ids); err != nil {
+		return fmt.Errorf("cannot set ids to pg variable: %w", err)
+	}
+
+	query := `UPDATE urls SET deleted_at = NOW() WHERE user_id = $1 AND id = ANY($2);`
+	_, err := r.db.ExecContext(ctx, query, uid, arr)
+	return err
 }
 
 func (r *RDB) Ping(ctx context.Context) error {
