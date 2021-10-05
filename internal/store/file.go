@@ -76,10 +76,14 @@ func (f *FileStore) SaveBatch(_ context.Context, urls []*url.URL) (ids []string,
 }
 
 func (f *FileStore) Load(_ context.Context, id string) (u *url.URL, err error) {
-	if u, ok := f.store.Hot[id]; ok {
-		return u, nil
+	u, ok := f.store.Hot[id]
+	if !ok {
+		return nil, ErrNotFound
 	}
-	return nil, ErrNotFound
+	if u == nil {
+		return nil, ErrDeleted
+	}
+	return u, nil
 }
 
 func (f *FileStore) SaveUser(ctx context.Context, uid uuid.UUID, u *url.URL) (id string, err error) {
@@ -113,17 +117,39 @@ func (f *FileStore) LoadUser(ctx context.Context, uid uuid.UUID, id string) (u *
 	if err != nil {
 		return nil, fmt.Errorf("cannot load user urls: %w", err)
 	}
-	if u, ok := urls[id]; ok {
-		return u, nil
+	u, ok := urls[id]
+	if !ok {
+		return nil, ErrNotFound
 	}
-	return nil, ErrNotFound
+	if u == nil {
+		return nil, ErrDeleted
+	}
+	return u, nil
 }
 
 func (f *FileStore) LoadUsers(_ context.Context, uid uuid.UUID) (urls map[string]*url.URL, err error) {
-	if urls, ok := f.store.UserHot[uid.String()]; ok {
-		return urls, nil
+	urls, ok := f.store.UserHot[uid.String()]
+	if !ok {
+		return nil, ErrNotFound
 	}
-	return nil, ErrNotFound
+	res := make(map[string]*url.URL)
+	for k, v := range urls {
+		if v != nil {
+			res[k] = v
+		}
+	}
+	return res, nil
+}
+
+func (f *FileStore) DeleteUsers(_ context.Context, uid uuid.UUID, ids ...string) error {
+	userID := uid.String()
+	for _, id := range ids {
+		if _, ok := f.store.UserHot[userID]; ok {
+			f.store.Hot[id] = nil
+			f.store.UserHot[userID][id] = nil
+		}
+	}
+	return f.flush()
 }
 
 func (f *FileStore) Close() error {

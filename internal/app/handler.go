@@ -101,6 +101,10 @@ func (i *Instance) ExpandHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		if errors.Is(err, store.ErrDeleted) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -195,6 +199,38 @@ func (i *Instance) BatchShortenAPIHandler(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		fmt.Printf("cannot write response: %s", err)
 	}
+}
+
+func (i *Instance) BatchRemoveAPIHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	uid := auth.UIDFromContext(ctx)
+	if uid == nil {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+
+	var ids []string
+	err := json.NewDecoder(r.Body).Decode(&ids)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("Bad request body given"))
+		return
+	}
+
+	if len(ids) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("Empty IDs list given"))
+		return
+	}
+
+	err = i.store.DeleteUsers(ctx, *uid, ids...)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (i *Instance) PingHandler(w http.ResponseWriter, r *http.Request) {

@@ -45,10 +45,14 @@ func (m *InMemory) SaveBatch(_ context.Context, urls []*url.URL) (ids []string, 
 }
 
 func (m *InMemory) Load(_ context.Context, id string) (u *url.URL, err error) {
-	if u, ok := m.store[id]; ok {
-		return u, nil
+	u, ok := m.store[id]
+	if !ok {
+		return nil, ErrNotFound
 	}
-	return nil, ErrNotFound
+	if u == nil {
+		return nil, ErrDeleted
+	}
+	return u, nil
 }
 
 func (m *InMemory) SaveUser(ctx context.Context, uid uuid.UUID, u *url.URL) (id string, err error) {
@@ -82,17 +86,40 @@ func (m *InMemory) LoadUser(ctx context.Context, uid uuid.UUID, id string) (u *u
 	if err != nil {
 		return nil, fmt.Errorf("cannot load user urls: %w", err)
 	}
-	if u, ok := urls[id]; ok {
-		return u, nil
+	u, ok := urls[id]
+	if !ok {
+		return nil, ErrNotFound
 	}
-	return nil, ErrNotFound
+	if u == nil {
+		return nil, ErrDeleted
+	}
+	return u, nil
 }
 
 func (m *InMemory) LoadUsers(_ context.Context, uid uuid.UUID) (urls map[string]*url.URL, err error) {
-	if urls, ok := m.userStore[uid.String()]; ok {
-		return urls, nil
+	urls, ok := m.userStore[uid.String()]
+	if !ok {
+		return nil, ErrNotFound
 	}
-	return nil, ErrNotFound
+	// filter out deleted URLs
+	res := make(map[string]*url.URL)
+	for k, v := range urls {
+		if v != nil {
+			res[k] = v
+		}
+	}
+	return res, nil
+}
+
+func (m *InMemory) DeleteUsers(_ context.Context, uid uuid.UUID, ids ...string) error {
+	userID := uid.String()
+	for _, id := range ids {
+		if _, ok := m.userStore[userID]; ok {
+			m.store[id] = nil
+			m.userStore[userID][id] = nil
+		}
+	}
+	return nil
 }
 
 func (m *InMemory) Close() error {

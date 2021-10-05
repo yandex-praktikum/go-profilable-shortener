@@ -18,6 +18,7 @@ func newRouter(i *app.Instance) http.Handler {
 	r.Post("/", i.ShortenHandler)
 	r.Post("/api/shorten", i.ShortenAPIHandler)
 	r.Post("/api/shorten/batch", i.BatchShortenAPIHandler)
+	r.Delete("/api/user/urls", i.BatchRemoveAPIHandler)
 	r.Get("/{id}", i.ExpandHandler)
 	r.Get("/user/urls", i.UserURLsHandler)
 	r.Get("/ping", i.PingHandler)
