@@ -14,7 +14,7 @@ import (
 
 func Test_authMiddleware(t *testing.T) {
 	t.Run("no_cookie", func(t *testing.T) {
-		r := httptest.NewRequest("GET", "/user/urls", nil)
+		r := httptest.NewRequest("GET", "/api/user/urls", nil)
 		w := httptest.NewRecorder()
 
 		mw := authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +26,7 @@ func Test_authMiddleware(t *testing.T) {
 	})
 
 	t.Run("bad_cookie", func(t *testing.T) {
-		r := httptest.NewRequest("GET", "/user/urls", nil)
+		r := httptest.NewRequest("GET", "/api/user/urls", nil)
 		r.AddCookie(&http.Cookie{Name: "auth", Value: "ololo"})
 		w := httptest.NewRecorder()
 
@@ -43,7 +43,7 @@ func Test_authMiddleware(t *testing.T) {
 		cookie, err := auth.EncodeUIDToHex(uid)
 		require.NoError(t, err)
 
-		r := httptest.NewRequest("GET", "/user/urls", nil)
+		r := httptest.NewRequest("GET", "/api/user/urls", nil)
 		r.AddCookie(&http.Cookie{Name: "auth", Value: cookie})
 		w := httptest.NewRecorder()
 
