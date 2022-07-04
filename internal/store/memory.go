@@ -32,7 +32,6 @@ func (m *InMemory) Save(_ context.Context, u *url.URL) (id string, err error) {
 }
 
 func (m *InMemory) SaveBatch(_ context.Context, urls []*url.URL) (ids []string, err error) {
-	ids = make([]string, 0, len(urls))
 	for _, u := range urls {
 		id := fmt.Sprintf("%x", len(m.store))
 		m.store[id] = u

@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -79,7 +77,7 @@ func (r *RDB) Save(ctx context.Context, url *url.URL) (id string, err error) {
 		return "", fmt.Errorf("cannot fetch conflict url: %w", err)
 	}
 
-	id = strconv.FormatInt(lid, 10)
+	id = fmt.Sprint(lid)
 	if updatedAt != nil && !updatedAt.IsZero() {
 		err = ErrConflict
 	}
@@ -87,21 +85,21 @@ func (r *RDB) Save(ctx context.Context, url *url.URL) (id string, err error) {
 }
 
 func (r *RDB) SaveBatch(ctx context.Context, urls []*url.URL) (ids []string, err error) {
-	args := make([]interface{}, 0, len(urls))
+	var args []interface{}
 
-	var insertValues strings.Builder
+	var insertValues string
 	for i, u := range urls {
 		if i > 0 {
-			insertValues.WriteByte(',')
+			insertValues += ","
 		}
-		insertValues.WriteString("($" + strconv.Itoa(i+1) + ")")
+		insertValues += fmt.Sprintf("($%d)", i+1)
 		args = append(args, u.String())
 	}
 
 	query := `
 		INSERT INTO urls
 			(original_url)
-		VALUES ` + insertValues.String() + `
+		VALUES ` + insertValues + `
 		ON CONFLICT (original_url) WHERE deleted_at IS NULL
 		DO UPDATE SET updated_at = NOW()
 		RETURNING id
@@ -118,7 +116,7 @@ func (r *RDB) SaveBatch(ctx context.Context, urls []*url.URL) (ids []string, err
 		if err := rows.Scan(&id); err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
-		ids = append(ids, strconv.FormatInt(id, 10))
+		ids = append(ids, fmt.Sprint(id))
 	}
 
 	if err := rows.Err(); err != nil {
@@ -171,7 +169,7 @@ func (r *RDB) SaveUser(ctx context.Context, uid uuid.UUID, url *url.URL) (id str
 		return "", fmt.Errorf("cannot fetch conflict url: %w", err)
 	}
 
-	id = strconv.FormatInt(lid, 10)
+	id = fmt.Sprint(lid)
 	if updatedAt != nil && !updatedAt.IsZero() {
 		err = ErrConflict
 	}
@@ -179,20 +177,20 @@ func (r *RDB) SaveUser(ctx context.Context, uid uuid.UUID, url *url.URL) (id str
 }
 
 func (r *RDB) SaveUserBatch(ctx context.Context, uid uuid.UUID, urls []*url.URL) (ids []string, err error) {
-	args := make([]interface{}, 0, len(urls)+1)
+	var args []interface{}
 	uidPos := len(urls) + 1
 
-	var insertValues strings.Builder
+	var insertValues string
 	for i, u := range urls {
 		if i > 0 {
-			insertValues.WriteByte(',')
+			insertValues += ","
 		}
-		insertValues.WriteString("($" + strconv.Itoa(i+1) + ", $" + strconv.Itoa(uidPos) + ")")
+		insertValues += fmt.Sprintf("($%d, $%d)", i+1, uidPos)
 		args = append(args, u.String())
 	}
 	args = append(args, uid)
 
-	query := `INSERT INTO urls (original_url, user_id) VALUES ` + insertValues.String() + ` RETURNING id;`
+	query := `INSERT INTO urls (original_url, user_id) VALUES ` + insertValues + ` RETURNING id;`
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -205,7 +203,7 @@ func (r *RDB) SaveUserBatch(ctx context.Context, uid uuid.UUID, urls []*url.URL)
 		if err := rows.Scan(&id); err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
-		ids = append(ids, strconv.FormatInt(id, 10))
+		ids = append(ids, fmt.Sprint(id))
 	}
 
 	if err := rows.Err(); err != nil {
@@ -260,7 +258,7 @@ func (r *RDB) LoadUsers(ctx context.Context, uid uuid.UUID) (urls map[string]*ur
 			return nil, fmt.Errorf("cannot parse URL: %w", err)
 		}
 
-		res[strconv.FormatInt(id, 10)] = u
+		res[fmt.Sprint(id)] = u
 	}
 
 	if err := rows.Err(); err != nil {

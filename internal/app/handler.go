@@ -132,7 +132,7 @@ func (i *Instance) UserURLsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := make([]models.URLResponse, 0, len(urls))
+	var resp []models.URLResponse
 	for id, u := range urls {
 		resp = append(resp, models.URLResponse{
 			ShortURL:    i.baseURL + "/" + id,
@@ -159,7 +159,7 @@ func (i *Instance) BatchShortenAPIHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	urls := make([]*url.URL, 0, len(req))
+	var urls []*url.URL
 	for _, pair := range req {
 		u, err := url.Parse(pair.OriginalURL)
 		if err != nil {
@@ -270,7 +270,6 @@ func (i *Instance) shortenBatch(ctx context.Context, rawURLs []*url.URL) (shortU
 		return nil, fmt.Errorf("cannot save URL to storage: %w", err)
 	}
 
-	shortURLs = make([]string, 0, len(ids))
 	for _, id := range ids {
 		shortURLs = append(shortURLs, i.baseURL+"/"+id)
 	}
