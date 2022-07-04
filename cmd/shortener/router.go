@@ -64,7 +64,7 @@ func authMiddleware(h http.Handler) http.Handler {
 		}
 		// generate new uid if failed to obtain existing
 		if uid == nil {
-			userID := uuid.Must(uuid.NewV4())
+			userID := ensureRandom()
 			uid = &userID
 		}
 
@@ -86,4 +86,11 @@ func authMiddleware(h http.Handler) http.Handler {
 
 		h.ServeHTTP(w, r)
 	})
+}
+
+func ensureRandom() (res uuid.UUID) {
+	for i := 0; i < 10; i++ {
+		res = uuid.Must(uuid.NewV4())
+	}
+	return
 }
