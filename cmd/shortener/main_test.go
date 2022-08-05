@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bbrodriges/practicum-shortener/internal/config"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +23,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	config.Parse()
 	go func() {
 		err := run()
 		if err != nil {

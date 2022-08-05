@@ -16,14 +16,14 @@ import (
 )
 
 func main() {
+	config.Parse()
+
 	if err := run(); err != nil {
 		panic("unexpected error: " + err.Error())
 	}
 }
 
 func run() error {
-	config.Parse()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
