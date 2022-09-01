@@ -1,0 +1,21 @@
+name: autotests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  shortenertest:
+    runs-on: ubuntu-latest
+    container: golang:1.18
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run go test
+        run: |
+          go test -v ./...
