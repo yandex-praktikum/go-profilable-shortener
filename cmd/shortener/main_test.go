@@ -14,12 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bbrodriges/practicum-shortener/internal/config"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bbrodriges/practicum-shortener/models"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/config"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/models"
 )
 
 func TestMain(m *testing.M) {

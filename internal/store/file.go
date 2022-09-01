@@ -141,8 +141,8 @@ func (f *FileStore) LoadUsers(_ context.Context, uid uuid.UUID) (urls map[string
 }
 
 func (f *FileStore) DeleteUsers(_ context.Context, uid uuid.UUID, ids ...string) error {
-	userID := uid.String()
 	for _, id := range ids {
+		userID := uid.String()
 		if _, ok := f.store.UserHot[userID]; ok {
 			f.store.Hot[id] = nil
 			f.store.UserHot[userID][id] = nil

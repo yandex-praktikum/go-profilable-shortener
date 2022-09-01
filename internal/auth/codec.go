@@ -11,7 +11,7 @@ import (
 
 	"github.com/gofrs/uuid"
 
-	"github.com/bbrodriges/practicum-shortener/internal/config"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/config"
 )
 
 func EncodeUID(uid uuid.UUID) ([]byte, error) {

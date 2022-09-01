@@ -7,8 +7,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/gofrs/uuid"
 
-	"github.com/bbrodriges/practicum-shortener/internal/app"
-	"github.com/bbrodriges/practicum-shortener/internal/auth"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/app"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/auth"
 )
 
 func newRouter(i *app.Instance) http.Handler {

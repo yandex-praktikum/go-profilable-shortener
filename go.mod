@@ -1,4 +1,4 @@
-module github.com/bbrodriges/practicum-shortener
+module github.com/Yandex-Praktikum/go-profilable-shortener
 
 go 1.16
 
@@ -6,7 +6,7 @@ require (
 	github.com/cockroachdb/apd v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-chi/chi/v5 v5.0.3
-	github.com/go-resty/resty/v2 v2.6.0
+	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgx v3.6.2+incompatible

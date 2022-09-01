@@ -36,5 +36,4 @@ func Parse() {
 	}
 
 	BaseURL = strings.TrimRight(BaseURL, "/")
-	_ = BaseURL
 }

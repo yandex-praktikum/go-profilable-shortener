@@ -12,9 +12,10 @@ type compressWriter struct {
 }
 
 func newCompressWriter(w http.ResponseWriter) *compressWriter {
+	zw, _ := gzip.NewWriterLevel(w, gzip.BestCompression)
 	return &compressWriter{
 		w:  w,
-		zw: gzip.NewWriter(w),
+		zw: zw,
 	}
 }
 

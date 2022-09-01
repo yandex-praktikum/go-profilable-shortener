@@ -111,8 +111,8 @@ func (m *InMemory) LoadUsers(_ context.Context, uid uuid.UUID) (urls map[string]
 }
 
 func (m *InMemory) DeleteUsers(_ context.Context, uid uuid.UUID, ids ...string) error {
-	userID := uid.String()
 	for _, id := range ids {
+		userID := uid.String()
 		if _, ok := m.userStore[userID]; ok {
 			m.store[id] = nil
 			m.userStore[userID][id] = nil

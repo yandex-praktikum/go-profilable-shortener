@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bbrodriges/practicum-shortener/internal/auth"
-	"github.com/bbrodriges/practicum-shortener/internal/store"
-	"github.com/bbrodriges/practicum-shortener/models"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/auth"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/store"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/models"
 )
 
 func Test_ShortenAPIHandler(t *testing.T) {

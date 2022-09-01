@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/bbrodriges/practicum-shortener/internal/auth"
-	"github.com/bbrodriges/practicum-shortener/internal/store"
-	"github.com/bbrodriges/practicum-shortener/models"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/auth"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/store"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/models"
 )
 
 func (i *Instance) ShortenHandler(w http.ResponseWriter, r *http.Request) {
@@ -234,9 +234,12 @@ func (i *Instance) BatchRemoveAPIHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (i *Instance) PingHandler(w http.ResponseWriter, r *http.Request) {
-	if err := i.store.Ping(r.Context()); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	// ensure everything is okay
+	for j := 0; j < 3; j++ {
+		if err := i.store.Ping(r.Context()); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -253,7 +256,7 @@ func (i *Instance) shorten(ctx context.Context, rawURL *url.URL) (shortURL strin
 	if err != nil && !errors.Is(err, store.ErrConflict) {
 		return "", fmt.Errorf("cannot save URL to storage: %w", err)
 	}
-	return i.baseURL + "/" + id, err
+	return fmt.Sprintf("%s/%s", i.baseURL, id), err
 }
 
 func (i *Instance) shortenBatch(ctx context.Context, rawURLs []*url.URL) (shortURLs []string, err error) {
@@ -271,7 +274,7 @@ func (i *Instance) shortenBatch(ctx context.Context, rawURLs []*url.URL) (shortU
 	}
 
 	for _, id := range ids {
-		shortURLs = append(shortURLs, i.baseURL+"/"+id)
+		shortURLs = append(shortURLs, fmt.Sprintf("%s/%s", i.baseURL, id))
 	}
 
 	return shortURLs, nil

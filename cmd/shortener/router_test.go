@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/bbrodriges/practicum-shortener/internal/auth"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/auth"
 )
 
 func Test_authMiddleware(t *testing.T) {

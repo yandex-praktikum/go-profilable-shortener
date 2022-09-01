@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/bbrodriges/practicum-shortener/internal/store"
+	"github.com/Yandex-Praktikum/go-profilable-shortener/internal/store"
 )
 
 type Instance struct {
