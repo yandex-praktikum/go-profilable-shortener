@@ -10,7 +10,7 @@ jobs:
 
   shortenertest:
     runs-on: ubuntu-latest
-    container: golang:1.18
+    container: golang:1.21
 
     services:
       postgres:
@@ -32,7 +32,7 @@ jobs:
         uses: robinraju/release-downloader@v1.2
         with:
           repository: Yandex-Practicum/go-autotests
-          latest: true
+          tag: "v0.9.16"
           fileName: "*"
           out-file-path: .tools
 
